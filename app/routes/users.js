@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken')
 require('dotenv').config()
 const secret = process.env.JWT_TOKEN
 const withAuth = require('../middlewares/auth');
-const user = require('../models/user');
+
 
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body
@@ -39,49 +39,98 @@ router.post('/login', async (req, res) => {
   }
 })
 
-router.put('/edit', withAuth, async (req, res) => {
-  const { name, email } = req.body
-  try {
 
-    let user = await User.findOneAndUpdate(
-      { _id: req.user.id },
-      { $set: { name: name, email: email, updated_at: Date.now() } },
-      { upsert: true, 'new': true }
-    )
-    res.json(user)
-  } catch (error) {
-    res.json({ error: 'Problem to update' })
-    console.log(error)
-  }
-})
+
+router.put('/edit', withAuth, async (req, res) => {
+  const { name, email, currentPassword, id } = req.body;
+  let user = await User.findById(id)
+  user.isCorrectPassword(currentPassword, async function (err, same) {
+    if (!same) {
+      console.log('senha invalida ')
+      res.status(401).json({ error: 'invalid password' });
+    } else {
+      console.log('senha valida ')
+      try {
+        let usr = await User.findOneAndUpdate(
+          { _id: id },
+          { $set: { name: name, email: email, updated_at: Date.now() } },
+          { upsert: true, 'new': true }
+        )
+        res.json({ user: usr }).status(200);
+      } catch (error) {
+        res.status(501).json({ error: error });
+        console.log(error)
+      }
+    }
+  })
+
+}
+)
 
 router.put('/password', withAuth, async (req, res) => {
-  const { password } = req.body
-  try {
+  const { newPassword, currentPassword, id } = req.body;
+  let user = await User.findById(id)
+  user.isCorrectPassword(currentPassword, async function (err, same) {
+    if (!same) {
+      console.log('senha invalida ')
+      res.status(401).json({ error: 'invalid password' });
+    } else {
+      console.log('senha valida ')
+      try {
+        user.password = newPassword
+        await user.save()
+        res.json({ user: user });
+      } catch (error) {
+        res.status(401).json({ error: 'invalid password' });
+      }
+    }
+  }
+  )
+});
 
-    let user = await User.findOneAndUpdate({ _id: req.user.id },
-      { $set: { password: password, updated_at: Date.now() } },
-      { upsert: true, 'new': true }
-    )
-    res.json(user)
+router.delete('/', async function (req, res) {
+  const { currentPassword, id } = req.body;
+  try {
+    let user = await User.findOne({ _id: id });
+    console.log(id, user, currentPassword)
+    user.isCorrectPassword(currentPassword, async function (err, same) {
+      if (!same) {
+        console.log('senha invalida ')
+        res.status(401).json({ error: 'invalid password' });
+      } else {
+        console.log('senha valida ')
+        try {
+          await user.delete();
+          res.json({ message: 'OK' }).status(201);
+        } catch (error) {
+          res.status(500).json({ error: error });
+          console.log(error)
+        }
+      }
+    });
   } catch (error) {
-    res.json({ error: 'Problem to update' })
+    res.status(500).json({ error: error });
     console.log(error)
   }
-})
+});
 
-router.delete('/delete', withAuth, async function (req, res) {
+router.post('/delete', withAuth, async function (req, res) {
+  console.log(req.body)
   try {
     let user = await User.findOne({ _id: req.user._id });
-    await user.delete();
-    res.json({ message: 'OK' }).status(201);
+    user.isCorrectPassword(req.body.password, async function (err, same) {
+      if (!same) {
+        console.log('senha invalida ')
+        res.status(401).json({ error: 'invalid password' });
+      } else {
+        console.log('senha valida ')
+        await user.delete();
+        res.json({ message: 'OK' }).status(201);
+      }
+    })
   } catch (error) {
     res.status(500).json({ error: error });
   }
 });
-
-const confirmPassword = () => {
-
-}
 
 module.exports = router;
