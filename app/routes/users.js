@@ -88,49 +88,41 @@ router.put('/password', withAuth, async (req, res) => {
   )
 });
 
-router.delete('/', async function (req, res) {
-  const { currentPassword, id } = req.body;
+router.delete('/', withAuth, async function (req, res) {
   try {
-    let user = await User.findOne({ _id: id });
-    console.log(id, user, currentPassword)
-    user.isCorrectPassword(currentPassword, async function (err, same) {
-      if (!same) {
-        console.log('senha invalida ')
-        res.status(401).json({ error: 'invalid password' });
-      } else {
-        console.log('senha valida ')
-        try {
-          await user.delete();
-          res.json({ message: 'OK' }).status(201);
-        } catch (error) {
-          res.status(500).json({ error: error });
-          console.log(error)
-        }
-      }
-    });
+    let user = await User.findOne({ _id: req.user._id });
+    await user.delete();
+    console.log('ok')
+    res.json({ message: 'OK' }).status(201);
   } catch (error) {
-    res.status(500).json({ error: error });
     console.log(error)
+    res.status(500).json({ error: error });
   }
 });
 
-router.post('/delete', withAuth, async function (req, res) {
-  console.log(req.body)
+
+router.post('/checkpassword', async (req, res) => {
+  const { email, password } = req.body
   try {
-    let user = await User.findOne({ _id: req.user._id });
-    user.isCorrectPassword(req.body.password, async function (err, same) {
-      if (!same) {
-        console.log('senha invalida ')
-        res.status(401).json({ error: 'invalid password' });
-      } else {
-        console.log('senha valida ')
-        await user.delete();
-        res.json({ message: 'OK' }).status(201);
-      }
-    })
+    let user = await User.findOne({ email })
+    if (!user) {
+      console.log('aqui2')
+      res.status(401).json({ error: 'incorrect email or password' })
+    } else {
+      user.isCorrectPassword(password, function (err, same) {
+        if (!same) {
+          console.log('aqui')
+          res.status(401).json({ error: 'incorrect email or password' })
+        } else {
+          res.status(200).json({ user: user, status: 'ok' })
+        }
+      })
+    }
   } catch (error) {
-    res.status(500).json({ error: error });
+    console.log(error)
+    res.status(500).json({ error: 'Internal error, please try again' })
   }
-});
+})
+
 
 module.exports = router;
