@@ -8,4 +8,6 @@ mongoose.connect(MONGO_URL,{
     useNewUrlParser: true,
     useUnifiedTopology:true,
 }).then(()=>{console.log('connection succesful')})
-.catch((err)=>{ console.log (err)});
+.catch((err)=>{ 
+    console.log (MONGO_URL)
+    console.log (err)});
